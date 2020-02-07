@@ -62,7 +62,7 @@ Spark 是在借鉴了 MapReduce 之上发展而来的，继承了其分布式并
 
 # Spark准备
 
-###　一、Spark源码的编译
+### 一、Spark源码的编译
 
 在spark.apache.org中下载spark，这里我们选择2.4.4的source code版本。下载后解压到software文件夹中。[Spark学习的官网](http://spark.apache.org/docs/latest/)。
 
@@ -122,4 +122,47 @@ SPARK_WORKER_INSTANCES=1  # 这里以后可以任意设置
 
 Spark Standalone模式的架构和Hadoop HDFS/YARN很类似的 1 master + n worker
 
-启动spark，进入sbin目录，然后输入./start-all.sh，进入 http://192.168.0.100:8080/ 可以查看信息。
+启动spark，进入sbin目录，然后输入./start-all.sh，进入 http://192.168.0.100:8080/ 可以查看信息，然后在bin目录下，执行spark-shell --master spark://willhope-PC:7077  (后面这个spark://willhope-PC:7077在你的 http://192.168.0.100:8080/ 页面的顶部位置可见)，启动时间有些长。
+
+###　三、使用Spark完成wordcount统计
+
+在bin目录下，执行spark-shell --master spark://willhope-PC:7077 ，会出现一个spark图像；也可以使用spark-shell --master local[2],推荐使用后者，这样可以使机器负载低一些。
+
+```
+Welcome to
+      ____              __
+     / __/__  ___ _____/ /__
+    _\ \/ _ \/ _ `/ __/  '_/
+   /___/ .__/\_,_/_/ /_/\_\   version 2.4.4
+      /_/
+
+Using Scala version 2.11.12 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_211)
+Type in expressions to have them evaluated.
+Type :help for more information.
+
+scala>
+
+```
+
+然后进行scala输入，可以将下面三行代码直接粘贴进去。注意，自己定义一个文件，用来操作wordcount统计
+
+```s
+val file = spark.sparkContext.textFile("file:///home/willhope/data/hello.txt")
+val wordCounts = file.flatMap(line => line.split("\t")).map((word => (word, 1))).reduceByKey(_ + _)
+wordCounts.collect
+
+结果：
+
+scala> val file = spark.sparkContext.textFile("file:///home/willhope/data/hello.txt")
+file: org.apache.spark.rdd.RDD[String] = file:///home/willhope/data/hello.txt MapPartitionsRDD[1] at textFile at <console>:23
+
+scala> val wordCounts = file.flatMap(line => line.split("\t")).map((word => (word, 1))).reduceByKey(_ + _)
+wordCounts: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[4] at reduceByKey at <console>:25
+
+scala> wordCounts.collect
+res0: Array[(String, Int)] = Array((word,3), (hello,5), (world,3))  
+
+```
+
+### Spark SQL概述
+
