@@ -44,7 +44,7 @@ SparkML：机器学习 API
 
 Spark Graphx：图形计算
 
-###　四、Spark和Hadoop的对比
+### 四、Spark和Hadoop的对比
 
 mapreduce 读 – 处理 - 写磁盘 -- 读 - 处理 - 写
 
@@ -164,5 +164,68 @@ res0: Array[(String, Int)] = Array((word,3), (hello,5), (world,3))
 
 ```
 
-### Spark SQL概述
+# Spark SQL
 
+### 一、Spark SQL的产生
+
+SQL是关系型数据库的标准，现在大数据框架，对于那些关系型数据库的开发人员来说成本太高，企业也依赖关系型数据库，sql非常易于学习。
+
+Hive:类似sql的HQL，但是底层应用的MR，这样性能很低。因此hive做了改进，hive on tez，hive on spark。hive on spark ==》shark，shark推出时很受欢迎，基于内存速度快，基于内存的列式存储（很大提升数据处理的效率），缺点：为了实现兼容spark，hql的解析、逻辑执行计划生成和优化依赖hive，仅仅只是把物理执行计划从mr作业替换成spark。后续shark终止，重新设计了Spark SQL，属于Spark社区。但是Hive on Spark依然存在，属于hive社区，进行维护。
+
+Spark sql 支持多种数据源，多种优化技术，扩展性很好
+
+### 二、SQL on Hadoop
+
+1. hive，Facebook开源，当前80%的公司都在使用它进行离线处理，因此hive非常重要。sql==》MR，metastore：元数据，数据库，表，试图
+
+2. impala，cloudera开发，sql不基于MR，但是对内存要求非常高，效率比hive高
+
+3. presto，Facebook开源，京东使用
+
+4. drill，近两年非常火的，可以访问hdfs、rdbms、json、hbase、mangodb、s3、hive
+
+5. Spark SQL，可以使用dataframe/dataset api，metastore：元数据，可以访问hdfs、rdbms、json、hbase、mangodb、s3、hive，不仅仅有访问或者操作sql的功能，还有其他丰富的操作：外部数据源、优化
+
+### 三、Spark SQL愿景
+
+写更少的代码
+
+读更少的数据
+
+将优化交给底层优化器
+
+### 四、从hive平滑过度到Spark SQL
+
+本节要掌握的
+
+```
+Spark1.x中的SQLContext/HiveContext的使用
+Spark2.x中的SparkSession的使用
+spark-shell/spark-sql的使用
+thriftserver/beeline的使用
+jdbc方式编程访问
+```
+
+这里来测试一下SQLContext的用法。在IDEA中使用maven创建一个scala项目，然后设置pom.xml文件。
+
+到项目所在的目录中进行maven编译 mvn clean package -DskipTests，之后在项目所在目录下的target目录下就会有这个项目的jar包。
+
+Spark提交，下面这些是提交时要注意的参数
+```bash
+ /spark-submit \
+  --class <main-class>
+  --master <master-url> \
+  --deploy-mode <deploy-mode> \
+  --conf <key>=<value> \
+  ... # other options
+  <application-jar> \
+  [application-arguments]
+
+# 在工作当中，要把下面的这些代码放在shell文件中执行
+  spark-submit \
+  --name SQLContextApp \
+  --class com.imooc.spark.SQLContextApp \
+  --master local[2] \
+  /home/willhope/lib/sql-1.0.jar \
+  /home/willhope/app/spark-2.1.0-bin-2.6.0-cdh5.15.1/examples/src/main/resources/people.json
+```
