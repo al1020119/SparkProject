@@ -2,6 +2,8 @@
 
 本项目分为Java版本和Scala版本。在学习的时候使用Scala，因为企业生产中都是使用Java来编写的，因此之后用Java进行重构。
 
+本项目中Spark SQL和Spark Streaming目录下都会有一个Actual-Project和一个learning-project，前者是本阶段学习整体完成后，进行的实战项目，后者是阶段性学习时，日常的测试。
+
 # Spark及生态圈概述
 
 ### 一、产生的背景
@@ -13,7 +15,7 @@ MapReduce局限性：代码非常繁琐，只能支持map和reduce方法，执�
 这使得学习、运维成本非常高。因此Spark由此而生。
 
 ### 二、Spark发展历史
-
+  
 1、2009年，Spark诞生于伯克利大学AMPLab，属于伯克利大学的研究性项目；
 
 2、2010 年，通过BSD 许可协议正式对外开源发布；
@@ -147,11 +149,13 @@ scala>
 然后进行scala输入，可以将下面三行代码直接粘贴进去。注意，自己定义一个文件，用来操作wordcount统计
 
 ```s
+# 仅仅只需要三行，就可以完成之前java写MR那些代码，但其实我们也可以使用Java8提供的函数式编程来简化代码
+
 val file = spark.sparkContext.textFile("file:///home/willhope/data/hello.txt")
 val wordCounts = file.flatMap(line => line.split("\t")).map((word => (word, 1))).reduceByKey(_ + _)
 wordCounts.collect
 
-结果：
+运行结果：
 
 scala> val file = spark.sparkContext.textFile("file:///home/willhope/data/hello.txt")
 file: org.apache.spark.rdd.RDD[String] = file:///home/willhope/data/hello.txt MapPartitionsRDD[1] at textFile at <console>:23
@@ -206,11 +210,85 @@ thriftserver/beeline的使用
 jdbc方式编程访问
 ```
 
-这里来测试一下SQLContext的用法。在IDEA中使用maven创建一个scala项目，然后设置pom.xml文件。
+- SQLContext的用法。
 
-到项目所在的目录中进行maven编译 mvn clean package -DskipTests，之后在项目所在目录下的target目录下就会有这个项目的jar包。
+此项目放在[这里](https://github.com/Zhang-Yixuan/SparkProject/tree/master/SparkSQL/learning-project/Spark-SQL/project-1)，在IDEA中使用maven创建一个scala项目，然后设置pom.xml文件,可从提供的项目中直接复制，准备一份json文件
+
+```json
+
+people.json文件
+
+{"name":"Michael"}
+{"name":"Andy", "age":30}
+{"name":"Justin", "age":19}
+{"name":"zhangsan","age":20}
+
+```
+
+编写scala代码，与Java操作MR相同，都是引进一个包即可
+
+```java
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.SQLContext
+
+/**
+ * SQLContext的使用
+ */
+
+object SQLContextApp {
+  def main(args: Array[String]): Unit = {
+    
+    //设置要读取文件的路径，这里将这个路径 file:///home/willhope/sparkdata/people.json 直接写在了项目配置中，也可以将arg(0)更改为这个路径
+    val path = args(0)
+
+    //1.创建相应的context，配置相关的类，这里有些像MR中driver类加载map和reduce那样，并且设置好在本地运行setMaster("local[2]")
+    val sparkConf = new SparkConf()
+    sparkConf.setAppName("SQLContextApp").setMaster("local[2]")
+
+    //2.加载上述配置
+    val sc = new SparkContext(sparkConf)
+    val sqlContext = new SQLContext(sc)
+
+
+    //3.进行相关的处理，处理一个json文件
+    val people = sqlContext.read.format("json").load(path)
+    
+    //这里会解析出json里面的字段
+    people.printSchema()
+
+    //显示json里的内容
+    people.show()
+
+    //4.养成好的习惯，要记得关闭资源
+    sc.stop()
+  }
+}
+```
+
+在IDEA中执行后，我们会发现
+
+```bash
+//解析出的字段
+root
+ |-- age: long (nullable = true)
+ |-- name: string (nullable = true)
+
+//显示结果
++----+--------+
+| age|    name|
++----+--------+
+|null| Michael|
+|  30|    Andy|
+|  19|  Justin|
+|  20|zhangsan|
++----+--------+
+
+```
+
+在生产中，肯定是在服务器上提交的，因此要将项目进行打包，然后写脚本执行。到项目所在的目录中进行maven编译，执行mvn clean package -DskipTests，之后在项目所在目录下的target目录下就会有这个项目的jar包。然后在终端中提交。
 
 Spark提交，下面这些是提交时要注意的参数
+
 ```bash
  /spark-submit \
   --class <main-class>
@@ -229,3 +307,5 @@ Spark提交，下面这些是提交时要注意的参数
   /home/willhope/lib/sql-1.0.jar \
   /home/willhope/app/spark-2.1.0-bin-2.6.0-cdh5.15.1/examples/src/main/resources/people.json
 ```
+
+- HiveContext
