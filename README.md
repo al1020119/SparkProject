@@ -198,17 +198,15 @@ Spark sql 支持多种数据源，多种优化技术，扩展性很好
 
 将优化交给底层优化器
 
-### 四、从hive平滑过度到Spark SQL
+### 四、Spark操作hive的多种方法
 
 本节要掌握的
 
-```
-Spark1.x中的SQLContext/HiveContext的使用
-Spark2.x中的SparkSession的使用
-spark-shell/spark-sql的使用
-thriftserver/beeline的使用
-jdbc方式编程访问
-```
+1. Spark1.x中的SQLContext/HiveContext的使用
+2. Spark2.x中的SparkSession的使用
+3. spark-shell/spark-sql的使用
+4. thriftserver/beeline的使用
+5. jdbc方式编程访问
 
 - SQLContext的用法。
 
@@ -285,7 +283,7 @@ root
 
 ```
 
-在生产中，肯定是在服务器上提交的，因此要将项目进行打包，然后写脚本执行。到项目所在的目录中进行maven编译，执行mvn clean package -DskipTests，之后在项目所在目录下的target目录下就会有这个项目的jar包。然后在终端中提交。
+在生产中，肯定是在服务器上提交的，因此要将项目进行打包，到项目所在的目录中进行maven编译，执行mvn clean package -DskipTests，之后在项目所在目录下的target目录下就会有这个项目的jar包。然后写脚本执行在终端中提交。
 
 Spark提交，下面这些是提交时要注意的参数
 
@@ -302,10 +300,370 @@ Spark提交，下面这些是提交时要注意的参数
 # 在工作当中，要把下面的这些代码放在shell文件中执行
   spark-submit \
   --name SQLContextApp \
-  --class com.imooc.spark.SQLContextApp \
+  --class com.scala.spark.SQLContextApp \
   --master local[2] \
   /home/willhope/lib/sql-1.0.jar \
   /home/willhope/app/spark-2.1.0-bin-2.6.0-cdh5.15.1/examples/src/main/resources/people.json
 ```
 
-- HiveContext
+- HiveContext，使用spark操作hive，编写的代码基本与SQLContext一致。
+
+```java
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.hive.HiveContext
+
+/**
+ * HiveContextApp的基本操作
+ * 在编译的时候，需要用--jars把连接mysql的jar包路径导入进来
+ */
+object HiveContextApp {
+  def main(args: Array[String]): Unit = {
+
+    //1.创建相应的context
+    val sparkConf = new SparkConf()
+    sparkConf.setAppName("HiveContextApp").setMaster("local[2]")
+
+    val sc = new SparkContext(sparkConf)
+    val hiveContext = new HiveContext(sc)
+
+
+    //2.进行相关的处理
+    hiveContext.table("emp").show()
+
+    //3.关闭资源
+    sc.stop()
+  }
+}
+
+```
+
+到项目所在的目录中进行maven编译，执行mvn clean package -DskipTests,之后在项目所在目录下的target目录下就会有这个项目的jar包。然后写脚本执行在终端中提交。这里与上面的不同，因为访问的是hive，因此无须添加要处理文件路径，但是要添加上访问mysql数据库的jar包。
+
+```bash
+  spark-submit \
+  --name HiveContextApp \
+  --class com.scala.spark.HiveContextApp \
+  --jars ~/software/mysql-connector-java-5.1.27-bin.jar  \
+  --master local[2] \
+  /home/willhope/lib/sql-1.0.jar \
+```
+
+- Spark session是spark2.x推荐的，可以替代SQLContext和HiveContext的作用，而且代码量大大降低
+
+```java
+
+import org.apache.spark.sql.SparkSession
+
+/**
+ * SparkSession的使用
+ */
+object SparkSessionApp {
+  def main(args: Array[String]): Unit = {
+
+    val spark = SparkSession.builder().appName("SparkSessionApp").master("local[2]").getOrCreate()
+    val people = spark.read.json("file:///home/willhope/sparkdata/people.json")
+    people.show()
+
+    spark.stop()
+  }
+}
+
+```
+
+- spark-shell的使用
+
+在使用前，将hadoop所有项启动，hive启动起来。
+
+要在Spark-shell访问hive，要先切换到hive目录下的conf目录，将hive-site.xml文件拷贝到Spark目录下的conf。cp hive-site.xml /home/willhope/app/spark-2.4.4-bin-2.6.0-cdh5.15.1/conf/，然后将hive目录下的lib下的mysql驱动jar包拷贝到spark目录下的jars中。也可以在spark目录下的bin目录下，添加路径执行./spark-shell --master local[2] --jars /home/willhope/software
+
+配置好了一切后，启动./spark-shell --master local[2]，然后输入spark.sql("show tables").show，可访问hive下的表，注意，sql()的括号中用来写sql语句。
+
+```bash
+
+  1. spark.sql("show tables").show
+  # 结果
+ 
+  +--------+--------------------+-----------+
+  |database|           tableName|isTemporary|
+  +--------+--------------------+-----------+
+  | default|          track_info|      false|
+  | default|track_info_provin...|      false|
+  +--------+--------------------+-----------+
+
+  2. spark.sql("select * from track_info").show
+  # 结果，这个表中有30万行数据，但只显示前20行，spark速度非常快。
+  +---------------+--------------------+--------------------+-------------------+-------+--------+------+----+----------+
+  |             ip|                 url|                  id|               time|country|province|  city|page|       day|
+  +---------------+--------------------+--------------------+-------------------+-------+--------+------+----+----------+
+  |   106.3.114.42|http://www.yihaod...|3T4QEMG2BQ93ATS98...|2013-07-21 11:24:56|   中国|  北京市|     -|   -|2013-07-21|
+  |  58.219.82.109|http://www.yihaod...|3T489Y1W6TECTAKDF...|2013-07-21 13:57:11|   中国|  江苏省|无锡市|   -|2013-07-21|
+  |  58.219.82.109|http://search.yih...|3T489Y1W6TECTAKDF...|2013-07-21 13:50:48|   中国|  江苏省|无锡市|   -|2013-07-21|
+  |  58.219.82.109|http://search.yih...|3T489Y1W6TECTAKDF...|2013-07-21 13:57:16|   中国|  江苏省|无锡市|   -|2013-07-21|
+  |  58.219.82.109|http://www.yihaod...|3T489Y1W6TECTAKDF...|2013-07-21 13:50:13|   中国|  江苏省|无锡市|   -|2013-07-21|
+  |  218.11.179.22|http://www.yihaod...|3T3WSNPKS9M3AYS9Z...|2013-07-21 08:00:13|   中国|  河北省|邢台市|   -|2013-07-21|
+  |  218.11.179.22|http://www.yihaod...|3T3WSNPKS9M3AYS9Z...|2013-07-21 08:00:20|   中国|  河北省|邢台市|   -|2013-07-21|
+  | 123.123.202.45|http://search.1ma...|3T25C9M46884Y5G8V...|2013-07-21 11:55:28|   中国|  北京市|     -|   -|2013-07-21|
+  | 123.123.202.45|http://t.1mall.co...|3T25C9M46884Y5G8V...|2013-07-21 11:55:21|   中国|  北京市|     -|   -|2013-07-21|
+  |118.212.191.216|http://m.1mall.co...|3T22N5JG3SJD5425F...|2013-07-21 19:07:19|   中国|  江西省|南昌市|   -|2013-07-21|
+  |   27.46.113.79|http://www.yihaod...|3T1KYPAPHWPSCWB3P...|2013-07-21 21:21:16|   中国|  广东省|深圳市|   -|2013-07-21|
+  |   27.46.113.79|http://www.yihaod...|3T1KYPAPHWPSCWB3P...|2013-07-21 21:20:09|   中国|  广东省|深圳市|   -|2013-07-21|
+  |   27.46.113.79|http://www.yihaod...|3T1KYPAPHWPSCWB3P...|2013-07-21 21:21:02|   中国|  广东省|深圳市|   -|2013-07-21|
+  |   27.46.113.94|http://www.yihaod...|3T1KYPAPHWPSCWB3P...|2013-07-21 21:21:16|   中国|  广东省|深圳市|   -|2013-07-21|
+  |   27.46.113.79|http://www.yihaod...|3T1KYPAPHWPSCWB3P...|2013-07-21 21:21:01|   中国|  广东省|深圳市|   -|2013-07-21|
+  |   27.46.113.94|http://www.yihaod...|3T1KYPAPHWPSCWB3P...|2013-07-21 21:19:08|   中国|  广东省|深圳市|   -|2013-07-21|
+  |   27.46.113.79|http://www.yihaod...|3T1KYPAPHWPSCWB3P...|2013-07-21 21:21:02|   中国|  广东省|深圳市|   -|2013-07-21|
+  |   27.46.113.79|http://www.yihaod...|3T1KYPAPHWPSCWB3P...|2013-07-21 21:18:56|   中国|  广东省|深圳市|   -|2013-07-21|
+  |   27.46.113.79|http://www.yihaod...|3T1KYPAPHWPSCWB3P...|2013-07-21 21:18:55|   中国|  广东省|深圳市|   -|2013-07-21|
+  |   27.46.113.94|http://www.yihaod...|3T1KYPAPHWPSCWB3P...|2013-07-21 21:18:49|   中国|  广东省|深圳市|   -|2013-07-21|
+  +---------------+--------------------+--------------------+-------------------+-------+--------+------+----+----------+
+  only showing top 20 rows
+
+```
+
+- Spark sql的使用
+
+其实与spark-shell用法相同，在spark目录下的bin目录下，添加路径执行./spark-sql --master local[2]，可以在浏览器输入 http://willhope-pc:4040/jobs/ 查看，这里启动后，其实就相当于启动了一个mysql控制台那种，可以直接写sql语句。在浏览器中刷新，可以看到刚才作业的完成情况。
+
+  ```s
+  # 创建一张表
+  create table t(key string,value string);
+
+  # 然后查看是否创建成功
+  show tables;
+
+  # 查看执行计划
+  explain extended select a.key*(2+3), b.value from  t a join t b on a.key = b.key and a.key > 3;
+
+  == Parsed Logical Plan ==
+  'Project [unresolvedalias(('a.key * (2 + 3)), None), 'b.value]
+  +- 'Join Inner, (('a.key = 'b.key) && ('a.key > 3))
+    :- 'UnresolvedRelation `t`, a
+    +- 'UnresolvedRelation `t`, b
+
+  == Analyzed Logical Plan ==
+  (CAST(key AS DOUBLE) * CAST((2 + 3) AS DOUBLE)): double, value: string
+  Project [(cast(key#321 as double) * cast((2 + 3) as double)) AS (CAST(key AS DOUBLE) * CAST((2 + 3) AS DOUBLE))#325, value#324]
+  +- Join Inner, ((key#321 = key#323) && (cast(key#321 as double) > cast(3 as double)))
+    :- SubqueryAlias a
+    :  +- MetastoreRelation default, t
+    +- SubqueryAlias b
+        +- MetastoreRelation default, t
+
+  == Optimized Logical Plan ==
+  Project [(cast(key#321 as double) * 5.0) AS (CAST(key AS DOUBLE) * CAST((2 + 3) AS DOUBLE))#325, value#324]
+  +- Join Inner, (key#321 = key#323)
+    :- Project [key#321]
+    :  +- Filter (isnotnull(key#321) && (cast(key#321 as double) > 3.0))
+    :     +- MetastoreRelation default, t
+    +- Filter (isnotnull(key#323) && (cast(key#323 as double) > 3.0))
+        +- MetastoreRelation default, t
+
+  == Physical Plan ==
+  *Project [(cast(key#321 as double) * 5.0) AS (CAST(key AS DOUBLE) * CAST((2 + 3) AS DOUBLE))#325, value#324]
+  +- *SortMergeJoin [key#321], [key#323], Inner
+    :- *Sort [key#321 ASC NULLS FIRST], false, 0
+    :  +- Exchange hashpartitioning(key#321, 200)
+    :     +- *Filter (isnotnull(key#321) && (cast(key#321 as double) > 3.0))
+    :        +- HiveTableScan [key#321], MetastoreRelation default, t
+    +- *Sort [key#323 ASC NULLS FIRST], false, 0
+        +- Exchange hashpartitioning(key#323, 200)
+          +- *Filter (isnotnull(key#323) && (cast(key#323 as double) > 3.0))
+              +- HiveTableScan [key#323, value#324], MetastoreRelation default, t
+
+  ```
+
+- thriftserver/beeline的使用，前者是服务器，后者是客户端的意思，hive中的server称为hiveserver
+
+```s
+
+在spark目录中的sbin目录下启动./sbin/start-thriftserver.sh
+可在 http://willhope-pc:4041/sqlserver/ 中查看，这里本应该是4040，但是如果之前启动了spark-sql，那么这个端口应该更改为4041，因为端口被占用，然后会自动加1
+
+在spark目录中bin目录下启动beeline
+./beeline -u jdbc:hive2://localhost:10000 -n willhope （注意这里的用户名是系统用户名）
+
+启动成功后，出现 0: jdbc:hive2://localhost:10000> 
+
+执行show tables;即可查看hive中表的情况
+ 
+在 http://willhope-pc:4041/sqlserver/ 中刷新，可以查看作业执行情况。
+
+修改thriftserver启动占用的默认端口号：
+./start-thriftserver.sh  \
+--master local[2] \
+--jars ~/software/mysql-connector-java-5.1.27-bin.jar  \   这句如果添加了mysql的jar到jars目录中，则不用写
+--hiveconf hive.server2.thrift.port=14000 
+
+beeline -u jdbc:hive2://localhost:14000 -n willhope
+
+
+thriftserver和普通的spark-shell/spark-sql有什么区别？
+1）spark-shell、spark-sql都是一个spark  application；
+2）thriftserver， 不管你启动多少个客户端(beeline/code)，只要连到一个server，永远都是一个spark application
+这里已经解决了一个数据共享的问题，多个客户端可以共享数据；
+
+```
+
+- jdbc编程访问
+
+```java
+import java.sql.DriverManager
+
+/**
+ * 通过jdbc访问
+ */
+
+object SparkSQLThriftServerApp {
+  def main(args: Array[String]): Unit = {
+
+    Class.forName("org.apache.hive.jdbc.HiveDriver")
+
+    val conn = DriverManager.getConnection("jdbc:hive2://localhost:10000","willhope","") //密码不写
+    val pstmt = conn.prepareStatement("select province , cnt  from track_info_province_stat")
+    val rs = pstmt.executeQuery()
+    while (rs.next()){
+      println("province:"+rs.getString("province")+"\t cnt:"+rs.getLong("cnt"))
+    }
+
+    rs.close()
+    pstmt.close()
+    conn.close()
+  }
+}
+
+
+//结果
+province:-	 cnt:923
+province:上海市	 cnt:72898
+province:云南省	 cnt:1480
+province:内蒙古自治区	 cnt:1298
+province:北京市	 cnt:42501
+province:台湾省	 cnt:254
+province:吉林省	 cnt:1435
+province:四川省	 cnt:4442
+province:天津市	 cnt:11042
+province:宁夏	 cnt:352
+province:安徽省	 cnt:5429
+province:山东省	 cnt:10145
+province:山西省	 cnt:2301
+province:广东省	 cnt:51508
+province:广西	 cnt:1681
+province:新疆	 cnt:840
+province:江苏省	 cnt:25042
+province:江西省	 cnt:2238
+province:河北省	 cnt:7294
+province:河南省	 cnt:5279
+province:浙江省	 cnt:20627
+province:海南省	 cnt:814
+province:湖北省	 cnt:7187
+province:湖南省	 cnt:2858
+province:澳门特别行政区	 cnt:6
+province:甘肃省	 cnt:1039
+province:福建省	 cnt:8918
+province:西藏	 cnt:110
+province:贵州省	 cnt:1084
+province:辽宁省	 cnt:2341
+province:重庆市	 cnt:1798
+province:陕西省	 cnt:2487
+province:青海省	 cnt:336
+province:香港特别行政区	 cnt:45
+province:黑龙江省	 cnt:1968
+
+```
+
+#### 五、DataFrame & Dataset
+
+- RDD、DataFrame和Dataset是什么鬼？
+
+1. 先看一下Spark中的RDD，DataFrame和Datasets的定义：
+
+    Spark RDD
+
+    RDD代表弹性分布式数据集。**它是数据库记录的只读分区集合**。 RDD是Spark的基本数据结构。它允许程序员以容错方式在大型集群上执行内存计算。
+
+    Spark Dataframe
+
+    与RDD不同，数据组以列的形式组织起来，**类似于关系数据库中的表**。它是一个不可变的分布式数据集合。 Spark中的DataFrame允许开发人员将数据结构(类型)加到分布式数据集合上，从而实现更高级别的抽象。
+
+    Spark Dataset
+
+    Apache Spark中的Dataset是DataFrame API的扩展，它提供了类型安全(type-safe)，面向对象(object-oriented)的编程接口。 Dataset利用优化器可以让用户通过类似于sql的表达式对数据进行查询。
+
+2. RDD、DataFrame和DataSet的比较
+
+  - Spark版本
+
+    RDD – 自Spark 1.0起
+    DataFrames – 自Spark 1.3起
+    DataSet – 自Spark 1.6起
+
+  - 数据表示形式
+
+    RDD是分布在集群中许多机器上的数据元素的分布式集合。 RDD是一组表示数据的Java或Scala对象。
+
+    DataFrame是命名列构成的分布式数据集合。 它在概念上类似于关系数据库中的表。
+
+    Dataset是DataFrame API的扩展，提供RDD API的类型安全，面向对象的编程接口以及Catalyst查询优化器的性能优势和DataFrame API的堆外存储机制的功能。
+
+  - 数据格式
+
+    RDD可以轻松有效地处理结构化和非结构化的数据。 和Dataframe和DataSet一样，RDD不会推断出所获取的数据的结构类型，需要用户来指定它。
+
+    DataFrame仅适用于结构化和半结构化数据。 它的数据以命名列的形式组织起来。
+
+    DataSet可以有效地处理结构化和非结构化数据。 它表示行(row)的JVM对象或行对象集合形式的数据。 它通过编码器以表格形式(tabular forms)表示。
+  
+  - 编译时类型安全
+
+    RDD提供了一种熟悉的面向对象编程风格，具有编译时类型安全性。
+
+    DataFrame如果您尝试访问表中不存在的列，则持编译错误。 它仅在运行时检测属性错误。
+
+    DataSet可以在编译时检查类型, 它提供编译时类型安全性。
+
+  - 序列化
+
+    RDD每当Spark需要在集群内分发数据或将数据写入磁盘时，它就会使用Java序列化。序列化单个Java和Scala对象的开销很昂贵，并且需要在节点之间发送数据和结构。
+
+    Spark DataFrame可以将数据序列化为二进制格式的堆外存储（在内存中），然后直接在此堆内存上执行许多转换。无需使用java序列化来编码数据。它提供了一个Tungsten物理执行后端，来管理内存并动态生成字节码以进行表达式评估。
+
+    DataSet在序列化数据时，Spark中的数据集API具有编码器的概念，该编码器处理JVM对象与表格表示之间的转换。它使用spark内部Tungsten二进制格式存储表格表示。数据集允许对序列化数据执行操作并改善内存使用。它允许按需访问单个属性，而不会消灭整个对象。
+
+  - 垃圾回收
+  
+    RDD 创建和销毁单个对象会导致垃圾回收。
+
+    DataFrame 避免在为数据集中的每一行构造单个对象时引起的垃圾回收。
+
+    DataSet因为序列化是通过Tungsten进行的，它使用了off heap数据序列化，不需要垃圾回收器来摧毁对象
+
+  - 效率/内存使用
+
+    RDD 在java和scala对象上单独执行序列化时，效率会降低，这需要花费大量时间。
+
+    DataFrame 使用off heap内存进行序列化可以减少开销。 它动态生成字节代码，以便可以对该序列化数据执行许多操作。 无需对小型操作进行反序列化。
+
+    DataSet它允许对序列化数据执行操作并改善内存使用。 因此，它可以允许按需访问单个属性，而无需反序列化整个对象。
+
+  - 编程语言支持
+
+    RDD 提供Java，Scala，Python和R语言的API。 因此，此功能为开发人员提供了灵活性。
+
+    DataFrame同样也提供Java，Scala，Python和R语言的API。
+
+    DataSet 的一些API目前仅支持Scala和Java，对Python和R语言的API在陆续开发中。
+  
+  - 聚合操作(Aggregation)
+
+    RDD API执行简单的分组和聚合操作的速度较慢。
+
+    DataFrame API非常易于使用。 探索性分析更快，在大型数据集上创建汇总统计数据。
+
+    Dataset中，对大量数据集执行聚合操作的速度更快。
+
+结论
+
+1. 当我们需要对数据集进行底层的转换和操作时， 可以选择使用RDD
+2. 当我们需要高级抽象时，可以使用DataFrame和Dataset API。
+3. 对于非结构化数据，例如媒体流或文本流，同样可以使用DataFrame和Dataset API。
+4. 我们可以使用DataFrame和Dataset 中的高级的方法。 例如，filter, maps, aggregation, sum, SQL queries以及通过列访问数据等，如果您不关心在按名称或列处理或访问数据属性时强加架构（例如列式格式）。另外，如果我们想要在编译时更高程度的类型安全性。RDD提供更底层功能， DataFrame和Dataset则允许创建一些自定义的结构，拥有高级的特定操作，节省空间并高速执行。为了确保我们的代码能够尽可能的利用Tungsten优化带来的好处，推荐使用Scala的 Dataset API（而不是RDD API）。Dataset即拥有DataFrame带来的relational transformation的便捷，也拥有RDD中的functional transformation的优势。
