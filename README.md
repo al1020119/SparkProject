@@ -667,3 +667,134 @@ province:黑龙江省	 cnt:1968
 2. 当我们需要高级抽象时，可以使用DataFrame和Dataset API。
 3. 对于非结构化数据，例如媒体流或文本流，同样可以使用DataFrame和Dataset API。
 4. 我们可以使用DataFrame和Dataset 中的高级的方法。 例如，filter, maps, aggregation, sum, SQL queries以及通过列访问数据等，如果您不关心在按名称或列处理或访问数据属性时强加架构（例如列式格式）。另外，如果我们想要在编译时更高程度的类型安全性。RDD提供更底层功能， DataFrame和Dataset则允许创建一些自定义的结构，拥有高级的特定操作，节省空间并高速执行。为了确保我们的代码能够尽可能的利用Tungsten优化带来的好处，推荐使用Scala的 Dataset API（而不是RDD API）。Dataset即拥有DataFrame带来的relational transformation的便捷，也拥有RDD中的functional transformation的优势。
+
+- DataFrame的基本操作
+
+```java
+
+import org.apache.spark.sql.SparkSession
+
+/**
+ * DataFrame API基本操作
+ */
+object DataFrameApp {
+
+  def main(args: Array[String]): Unit = {
+
+    val spark = SparkSession.builder().appName("DataFrameApp").master("local[2]").getOrCreate()
+
+    //将json文件加载成一个dataframe
+    val peopleDF = spark.read.format("json").load("file:///home/willhope/sparkdata/people.json")
+
+    //输出dataframe对应的schema信息
+    peopleDF.printSchema()
+
+    //输出数据集的前20条，可以自己在括号中写数量
+    peopleDF.show()
+
+    //输出某个列的内容
+    peopleDF.select("name").show()
+
+    //输出年龄列，并将年龄+10,select name from table
+    peopleDF.select(peopleDF.col("name") , peopleDF.col("age")+10).show()
+
+    //起个别名,输出年龄列，并将年龄+10,select name , age + 10  as age2 from table;
+    peopleDF.select(peopleDF.col("name") , (peopleDF.col("age")+10).as("age2")).show()
+
+    //根据某一列的值进行过滤： select * from table where age > 19
+    peopleDF.filter(peopleDF.col("age")>19).show()
+
+    //根据某一列进行分组，然后在进行局和操作：select age , count(1) from table group by age
+    peopleDF.groupBy("age").count().show()
+
+    spark.stop()
+  }
+
+}
+
+```
+
+- DataFrame与RDD之间的相互操作
+
+1. 操作方式一（反射：case class，前提是事先知道字段和字段类型）
+
+```java
+
+import org.apache.spark.sql.SparkSession
+
+/**
+ * DataFrameRDD和RDD的相互操作
+ */
+object DataFrameRDDApp {
+  def main(args: Array[String]): Unit = {
+
+    val spark = SparkSession.builder().appName("DataFrameApp").master("local[2]").getOrCreate()
+
+    //sparkContext可以获取到rdd，textfile可以从hdfs上读取文件，或者从本地获取文件
+    val rdd = spark.sparkContext.textFile("file:///home/willhope/sparkdata/infos.txt")
+
+    //导入一个隐式转换
+    import spark.implicits._
+    //第一个map将每行记录按照逗号分割。然后第二个map将每行的信息，然后将结果转换成DataFrame，这里需要一个隐式转换
+    val infoDF = rdd.map(_.split(",")).map(line => Info(line(0).toInt,line(1),line(2).toInt)).toDF()
+
+    //显示表中的数据
+    infoDF.show()
+
+    //显示年龄大于30岁的
+    infoDF.filter(infoDF.col("age") > 30).show()
+
+    //如果对编程不了解，也可以采用sql的方式来解决，创建一张临时的表，然后可以直接使用spark-sql
+    infoDF.createOrReplaceTempView("infos")
+    spark.sql("select * from infos where age>30").show()
+
+    spark.stop()
+  }
+
+  //定义schema
+  case class Info(id : Int , name : String , age : Int)
+
+}
+
+```
+
+2. 操作方式二（Row方式，事先不知道列的情况下，优先考虑第一种）
+
+```java
+
+import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
+import org.apache.spark.sql.{Row, SparkSession}
+
+/**
+ * DataFrameRDD和RDD的相互操作
+ */
+object DataFrameRDDApp {
+
+  def main(args: Array[String]): Unit = {
+
+    val spark = SparkSession.builder().appName("DataFrameApp").master("local[2]").getOrCreate()
+
+ //sparkContext可以获取到rdd，textfile可以从hdfs上读取文件，或者从本地获取文件
+    val rdd = spark.sparkContext.textFile("file:///home/willhope/sparkdata/infos.txt")
+
+    val infoRDD = rdd.map(_.split(",")).map(line => Row(line(0).toInt, line(1), line(2).toInt))
+
+    val structType = StructType(Array(StructField("id",IntegerType,true),
+      StructField("name",StringType,true),
+      StructField("age",IntegerType,true)
+    ))
+
+    val infoDF = spark.createDataFrame(infoRDD,structType)
+    infoDF.printSchema()
+    infoDF.show()
+
+    infoDF.filter(infoDF.col("age") > 30).show()
+
+    //如果对编程不了解，也可以采用sql的方式来解决，创建一张临时的表，然后可以直接使用spark-sql
+    infoDF.createOrReplaceTempView("infos")
+    spark.sql("select * from infos where age>30").show()
+    spark.stop()
+  }
+}
+```
+
