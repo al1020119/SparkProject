@@ -4,6 +4,10 @@
 
 本项目中Spark SQL和Spark Streaming目录下都会有一个Actual-Project和一个learning-project，前者是本阶段学习整体完成后，进行的实战项目，后者是阶段性学习时，日常的测试。
 
+**项目中所有用到的数据都在data目录下，可自行下载，注意在执行程序时，记得修改路径**
+
+其实这些数据，都在spark目录下/app/spark-2.4.4-bin-2.6.0-cdh5.15.1/examples/src/main/resources
+
 # Spark及生态圈概述
 
 ### 一、产生的背景
@@ -126,7 +130,23 @@ Spark Standalone模式的架构和Hadoop HDFS/YARN很类似的 1 master + n work
 
 启动spark，进入sbin目录，然后输入./start-all.sh，进入 http://192.168.0.100:8080/ 可以查看信息，然后在bin目录下，执行spark-shell --master spark://willhope-PC:7077  (后面这个spark://willhope-PC:7077在你的 http://192.168.0.100:8080/ 页面的顶部位置可见)，启动时间有些长。
 
-###　三、使用Spark完成wordcount统计
+###　三、Hive表的创建
+
+创建员工表
+
+create table emp(empno int,ename string,job string,mgr int,hiredate string,sal double,comm double,deptno int)row format delimited fields terminated by '\t';
+
+创建部门表
+
+create table dept(deptno int , dname string , location string)row format delimited fields terminated by '\t';
+
+加载数据
+
+load data local inpath '/home/willhope/sparkdata/emp.txt' into table emp;
+
+load data local inpath '/home/willhope/sparkdata/dept.txt' into table dept;
+
+###　四、使用Spark完成wordcount统计
 
 在bin目录下，执行spark-shell --master spark://willhope-PC:7077 ，会出现一个spark图像；也可以使用spark-shell --master local[2],推荐使用后者，这样可以使机器负载低一些。
 
@@ -226,6 +246,7 @@ people.json文件
 编写scala代码，与Java操作MR相同，都是引进一个包即可
 
 ```java
+
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SQLContext
 
@@ -668,6 +689,8 @@ province:黑龙江省	 cnt:1968
 3. 对于非结构化数据，例如媒体流或文本流，同样可以使用DataFrame和Dataset API。
 4. 我们可以使用DataFrame和Dataset 中的高级的方法。 例如，filter, maps, aggregation, sum, SQL queries以及通过列访问数据等，如果您不关心在按名称或列处理或访问数据属性时强加架构（例如列式格式）。另外，如果我们想要在编译时更高程度的类型安全性。RDD提供更底层功能， DataFrame和Dataset则允许创建一些自定义的结构，拥有高级的特定操作，节省空间并高速执行。为了确保我们的代码能够尽可能的利用Tungsten优化带来的好处，推荐使用Scala的 Dataset API（而不是RDD API）。Dataset即拥有DataFrame带来的relational transformation的便捷，也拥有RDD中的functional transformation的优势。
 
+#### 六、DataFrame和DataSet的实战
+
 - DataFrame的基本操作
 
 ```java
@@ -796,5 +819,410 @@ object DataFrameRDDApp {
     spark.stop()
   }
 }
+```
+
+- DataFrame的其他主要操作
+
+```java
+
+import org.apache.spark.sql.{Row, SparkSession}
+
+
+/**
+ * 展示dataframe中其他的操作
+ */
+object DataFrameCase {
+
+  def main(args: Array[String]): Unit = {
+
+    val spark = SparkSession.builder().appName("DataFrameApp").master("local[2]").getOrCreate()
+
+    //sparkContext可以获取到rdd，textfile可以从hdfs上读取文件，或者从本地获取文件
+    val rdd = spark.sparkContext.textFile("file:///home/willhope/sparkdata/student.data")
+
+    //注意：需要导入隐式转换
+    import  spark.implicits._
+    val studentDF = rdd.map(_.split("\\|")).map(line => Student(line(0).toInt, line(1), line(2),line(3))).toDF()
+   
+    //只显示前20条
+    studentDF.show()
+    
+    //指定显示条数
+    studentDF.show(30)
+    
+    //查看前10条记录，可以不加foreach，但是会显示的很乱
+    studentDF.take(10).foreach(println)
+    
+    //显示第一条记录
+    studentDF.first()
+    
+    //显示前三条
+    studentDF.head(3)
+    
+    //查询指定的列
+    studentDF.select("email").show(30,false)
+
+    //查询多个指定的列
+    studentDF.select("name","email").show(30,false)
+
+    //显示名字为空的和为Null的列
+    studentDF.filter("name = '' or name = 'NULL'").show()
+
+    //显示以M开头的人的信息，其中substr等价与substring
+    studentDF.filter("substr(name,0,1)='M'").show()
+
+    //查看spark-sql中内置的功能函数，显示1000条
+    spark.sql("show functions").show(1000)
+
+    //排序，默认升序
+    studentDF.sort(studentDF("name")).show()
+    //设置为降序
+    studentDF.sort(studentDF("name").desc).show()
+    //名字的升序，id的降序排列
+    studentDF.sort(studentDF("name").asc , studentDF("id").desc).show()
+
+    //将列名重命名
+    studentDF.select(studentDF("name").as("student_name")).show()
+
+    //内联结
+    val studentDF2 = rdd.map(_.split("\\|")).map(line => Student(line(0).toInt, line(1), line(2),line(3))).toDF()
+    //在内联结的时候，等于号必须写3个
+    studentDF.join(studentDF2 , studentDF.col("id") === studentDF2.col("id")).show()
+
+
+    spark.stop()
+
+  }
+
+  case class Student(id : Int , name : String , phone : String , email : String)
+
+}
+
+```
+
+上面的代码每次在IDEA中执行时，都会非常慢，因此，我们转换到spark-shell上面运行，会比较快一些。
+
+在Spark的bin目录下，执行
+
+```shell
+
+./spark-shell --master local[2]
+
+val rdd = spark.sparkContext.textFile("file:///home/willhope/sparkdata/student.data")
+
+case class Student(id : Int , name : String , phone : String , email : String)
+
+val studentDF = rdd.map(_.split("\\|")).map(line => Student(line(0).toInt, line(1), line(2),line(3))).toDF()
+  
+studentDF.show(30)
+
+# 结果
+
++---+--------+--------------+--------------------+
+| id|    name|         phone|               email|
++---+--------+--------------+--------------------+
+|  1|   Burke|1-300-746-8446|ullamcorper.velit...|
+|  2|   Kamal|1-668-571-5046|pede.Suspendisse@...|
+|  3|    Olga|1-956-311-1686|Aenean.eget.metus...|
+|  4|   Belle|1-246-894-6340|vitae.aliquet.nec...|
+|  5|  Trevor|1-300-527-4967|dapibus.id@acturp...|
+|  6|  Laurel|1-691-379-9921|adipiscing@consec...|
+|  7|    Sara|1-608-140-1995|Donec.nibh@enimEt...|
+|  8|  Kaseem|1-881-586-2689|cursus.et.magna@e...|
+|  9|     Lev|1-916-367-5608|Vivamus.nisi@ipsu...|
+| 10|    Maya|1-271-683-2698|accumsan.convalli...|
+| 11|     Emi|1-467-270-1337|        est@nunc.com|
+| 12|   Caleb|1-683-212-0896|Suspendisse@Quisq...|
+| 13|Florence|1-603-575-2444|sit.amet.dapibus@...|
+| 14|   Anika|1-856-828-7883|euismod@ligulaeli...|
+| 15|   Tarik|1-398-171-2268|turpis@felisorci.com|
+| 16|   Amena|1-878-250-3129|lorem.luctus.ut@s...|
+| 17| Blossom|1-154-406-9596|Nunc.commodo.auct...|
+| 18|     Guy|1-869-521-3230|senectus.et.netus...|
+| 19| Malachi|1-608-637-2772|Proin.mi.Aliquam@...|
+| 20|  Edward|1-711-710-6552|lectus@aliquetlib...|
+| 21|        |1-711-710-6552|lectus@aliquetlib...|
+| 22|        |1-711-710-6552|lectus@aliquetlib...|
+| 23|    NULL|1-711-710-6552|lectus@aliquetlib...|
++---+--------+--------------+--------------------+
+
+studentDF.take(10).foreach(println)
+
+# 结果
+
+[1,Burke,1-300-746-8446,ullamcorper.velit.in@ametnullaDonec.co.uk]
+[2,Kamal,1-668-571-5046,pede.Suspendisse@interdumenim.edu]
+[3,Olga,1-956-311-1686,Aenean.eget.metus@dictumcursusNunc.edu]
+[4,Belle,1-246-894-6340,vitae.aliquet.nec@neque.co.uk]
+[5,Trevor,1-300-527-4967,dapibus.id@acturpisegestas.net]
+[6,Laurel,1-691-379-9921,adipiscing@consectetueripsum.edu]
+[7,Sara,1-608-140-1995,Donec.nibh@enimEtiamimperdiet.edu]
+[8,Kaseem,1-881-586-2689,cursus.et.magna@euismod.org]
+[9,Lev,1-916-367-5608,Vivamus.nisi@ipsumdolor.com]
+[10,Maya,1-271-683-2698,accumsan.convallis@ornarelectusjusto.edu]
+
+其他的省略
+
+```
+
+- DataSet的操作
+
+```java
+
+import org.apache.spark.sql.SparkSession
+
+/**
+ * Dataset的操作
+ */
+object DatasetApp {
+
+  def main(args: Array[String]): Unit = {
+
+    val spark = SparkSession.builder().appName("DatasetApp").master("local[2]").getOrCreate()
+
+    //注意需要导入隐式转换
+    import spark.implicits._
+
+    val path = "file:///home/willhope/sparkdata/sales.csv"
+
+    //spark解析csv文件，显然dataframe拿到，然后在转为dataset
+    val df = spark.read.option("header","true").option("inferSchema","true").csv(path)
+    df.show()
+
+    //df转换为ds
+    val ds = df.as[Sales]
+    ds.map(line=>line.itemId).show()
+
+    spark.stop()
+  }
+
+  case class Sales(transactionId:Int,customerId:Int,itemId:Int,amountPaid:Double)
+
+}
+
+```
+
+- SQL、DataFrame和DataSet静态类型和运行时类型安全，即某个字段写错了
+
+SQL: seletc name from person;  compile  ok, result no
+
+DF:  df.select("name")  compile no      df.select("nname")  compile ok  
+
+DS:  ds.map(line => line.itemid)  compile no
+
+#### 七、External data source
+
+用户角度：
+
+	方便快速从不同的数据源（json、parquet、rdbms），经过混合处理（json join parquet）
+
+	再将处理结果以特定的格式（json、parquet）写回到指定的系统（HDFS、S3）上去
+
+外部数据源：
+
+  Spark SQL 1.2 ==> 外部数据源API，使spark可以快速访问各种外部数据源
+
+  读取：spark.read.format("格式").load(path)
+
+  写回：spark.write.format("格式").save(path)
+
+- scala操作parquet文件
+
+```java
+
+import org.apache.spark.sql.SparkSession
+
+/**
+ * parquet文件操作
+ */
+
+object ParquetApp {
+  def main(args: Array[String]): Unit = {
+
+    val spark = SparkSession.builder().appName("ParquetApp").master("local[2]").getOrCreate()
+
+    //标准写法，可以使用spark.read.load(路径)，但是此方法只适用于parquet文件
+    val userDF = spark.read.format("parquet").load("file:///home/willhope/sparkdata/users.parquet")
+    //上面这句也可以更改为
+    //spark.read.format("parquet").option("path","file:///home/willhope/sparkdata/users.parquet").load().show()
+
+    userDF.printSchema()
+    userDF.show()
+
+    //将查询结果写回
+    userDF.select("name","favorite_color").write.format("json").save("file:///home/willhope/app/tmp/jsonout")
+
+
+
+    spark.stop()
+
+  }
+}
+
+```
+
+- sql操作parquet（在spark-sql运行）
+
+```s
+# 创建表，并添加数据
+CREATE TEMPORARY VIEW parquetTable
+USING org.apache.spark.sql.parquet
+OPTIONS (
+  path "/home/willhope/sparkdata/users.parquet"
+)
+
+# 查询
+SELECT * FROM parquetTable
+```
+
+- 外部数据源API操作hive表
+
+打开spark-shell，在bin目录下./spark-shell --master local[2]
+
+查看hive表有哪些数据 : spark.sql("show tables").show
+
+读取表的数据：spark.table("track_info_province_stat").show
+
+统计各个省的数量：spark.sql("select province , count(1)  as num from track_info_province_stat group by province").show
+
+将结果写回：spark.sql("select province , count(1)  as num from track_info_province_stat group by province").write.saveAsTable("hive_table_test")
+
+在执行数据写回时，有一个200，这是spark在shuffle或者join时默认的分区，可以自定义设置：spark.sqlContext.setConf("spark.sql.shuffle.partitions","10"）通过spark.sqlContext.getConf("spark.sql.shuffle.partitions")来获取数量值。
+
+- 外部数据源API操作MySQL
+
+在spark-shell中执行
+
+```s
+
+val jdbcDF = spark.read.format("jdbc").option("url", "jdbc:mysql://localhost:3306/hadoop_hive").option("dbtable", "hadoop_hive.TBLS").option("user", "root").option("password", "123456").option("driver", "com.mysql.jdbc.Driver").load()
+
+# 显示schema
+jdbcDF.printSchema
+
+# 结果
+
+root
+ |-- TBL_ID: long (nullable = true)
+ |-- CREATE_TIME: integer (nullable = true)
+ |-- DB_ID: long (nullable = true)
+ |-- LAST_ACCESS_TIME: integer (nullable = true)
+ |-- OWNER: string (nullable = true)
+ |-- RETENTION: integer (nullable = true)
+ |-- SD_ID: long (nullable = true)
+ |-- TBL_NAME: string (nullable = true)
+ |-- TBL_TYPE: string (nullable = true)
+ |-- VIEW_EXPANDED_TEXT: string (nullable = true)
+ |-- VIEW_ORIGINAL_TEXT: string (nullable = true)
+ |-- LINK_TARGET_ID: long (nullable = true)
+
+# 显示表信息
+jdbcDF.show
+
+# 结果
++------+-----------+-----+----------------+--------+---------+-----+--------------------+--------------+------------------+------------------+--------------+
+|TBL_ID|CREATE_TIME|DB_ID|LAST_ACCESS_TIME|   OWNER|RETENTION|SD_ID|            TBL_NAME|      TBL_TYPE|VIEW_EXPANDED_TEXT|VIEW_ORIGINAL_TEXT|LINK_TARGET_ID|
++------+-----------+-----+----------------+--------+---------+-----+--------------------+--------------+------------------+------------------+--------------+
+|     9| 1580547501|    1|               0|willhope|        0|   12|          track_info|EXTERNAL_TABLE|              null|              null|          null|
+|    10| 1580549739|    1|               0|willhope|        0|   14|track_info_provin...| MANAGED_TABLE|              null|              null|          null|
+|    11| 1581157740|    1|               0|willhope|        0|   16|                   t| MANAGED_TABLE|              null|              null|          null|
+|    16| 1581302295|    1|               0|willhope|        0|   21|     hive_table_test| MANAGED_TABLE|              null|              null|          null|
++------+-----------+-----+----------------+--------+---------+-----+--------------------+--------------+------------------+------------------+--------------+
+
+# 查询TBL_ID,TBL_NAME
+jdbcDF.select("TBL_ID","TBL_NAME").show
+
+# 结果
++------+--------------------+
+|TBL_ID|            TBL_NAME|
++------+--------------------+
+|    16|     hive_table_test|
+|    11|                   t|
+|     9|          track_info|
+|    10|track_info_provin...|
++------+--------------------+
+
+```
+
+也可以使用下面这种编码
+
+```java
+import java.util.Properties
+val connectionProperties = new Properties()
+connectionProperties.put("user", "root")
+connectionProperties.put("password", "123456")
+connectionProperties.put("driver", "com.mysql.jdbc.Driver")
+
+val jdbcDF2 = spark.read.jdbc("jdbc:mysql://localhost:3306", "hadoop_hive.TBLS", connectionProperties)
+
+```
+
+也可以使用spark-sql执行
+
+```s
+CREATE TEMPORARY VIEW jdbcTable
+USING org.apache.spark.sql.jdbc
+OPTIONS (
+  url "jdbc:mysql://localhost:3306",
+  dbtable "hadoop_hive.TBLS",
+  user 'root',
+  password '123456',
+  driver 'com.mysql.jdbc.Driver'
+)
+```
+
+- 关联MySQL和Hive表数据
+
+在MYSQL中操作
+
+```s
+create database spark;
+
+use spark;
+
+CREATE TABLE DEPT(
+DEPTNO int(2) PRIMARY KEY,
+DNAME VARCHAR(14) ,
+LOC VARCHAR(13) ) ;
+
+INSERT INTO DEPT VALUES(10,'ACCOUNTING','NEW YORK');
+INSERT INTO DEPT VALUES(20,'RESEARCH','DALLAS');
+INSERT INTO DEPT VALUES(30,'SALES','CHICAGO');
+INSERT INTO DEPT VALUES(40,'OPERATIONS','BOSTON');
+
+```
+
+使用外部数据源综合查询hive和mysql的表数据
+
+```java
+
+import org.apache.spark.sql.SparkSession
+
+/**
+ * 使用外部数据源综合查询Hive和MySQL的表数据
+ */
+
+object HiveMySQLApp {
+
+  def main(args: Array[String]): Unit = {
+    val spark = SparkSession.builder().appName("HiveMySQLApp").master("local[2]").getOrCreate()
+
+    //加载hive表
+    val hiveDF = spark.table("emp")
+
+    //加载MySQL表
+    val mysqlDF = spark.read.format("jdbc").option("url", "jdbc:mysql://localhost:3306/spark").option("dbtable", "spark.DEPT").option("user", "root").option("password", "123456").option("driver", "com.mysql.jdbc.Driver").load()
+
+    //join操作
+    val resultDF = hiveDF.join(mysqlDF , hiveDF.col("deptno") === mysqlDF.col("DEPTNO"))
+    resultDF.show()
+
+    resultDF.select(hiveDF.col("empno"),hiveDF.col("ename"),mysqlDF.col("deptno"),mysqlDF.col("dname")).show()
+
+    spark.stop()
+  }
+
+}
+
 ```
 
