@@ -130,7 +130,7 @@ Spark Standalone模式的架构和Hadoop HDFS/YARN很类似的 1 master + n work
 
 启动spark，进入sbin目录，然后输入./start-all.sh，进入 http://192.168.0.100:8080/ 可以查看信息，然后在bin目录下，执行spark-shell --master spark://willhope-PC:7077  (后面这个spark://willhope-PC:7077在你的 http://192.168.0.100:8080/ 页面的顶部位置可见)，启动时间有些长。
 
-###　三、Hive表的创建
+### 三、Hive表的创建
 
 创建员工表
 
@@ -146,7 +146,7 @@ load data local inpath '/home/willhope/sparkdata/emp.txt' into table emp;
 
 load data local inpath '/home/willhope/sparkdata/dept.txt' into table dept;
 
-###　四、使用Spark完成wordcount统计
+### 四、使用Spark完成wordcount统计
 
 在bin目录下，执行spark-shell --master spark://willhope-PC:7077 ，会出现一个spark图像；也可以使用spark-shell --master local[2],推荐使用后者，这样可以使机器负载低一些。
 
