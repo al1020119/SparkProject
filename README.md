@@ -1294,8 +1294,323 @@ Flume：web日志写入到HDFS
 
 1）git clone https://github.com/wzhe06/ipdatabase.git
 
-2）编译下载的项目：mvn clean package -DskipTests
+2）编译下载的项目：mvn clean package -DskipTests 会出现一个target目录，里面有一个jar包
 
 3）安装jar包到自己的maven仓库
 
-mvn install:install-file -Dfile=/Users/rocky/source/ipdatabase/target/ipdatabase-1.0-SNAPSHOT.jar -DgroupId=com.ggstar -DartifactId=ipdatabase -Dversion=1.0 -Dpackaging=jar
+mvn install:install-file -Dfile=/home/willhope/sparkdata/ipdatabase/target/ipdatabase-1.0-SNAPSHOT.jar -DgroupId=com.ggstar -DartifactId=ipdatabase -Dversion=1.0 -Dpackaging=jar
+
+4）在IDEA中使用，在项目的pom.xml中进行引用
+
+```xml
+
+    <dependency>
+      <groupId>com.ggstar</groupId>
+      <artifactId>ipdatabase</artifactId>
+      <version>1.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>3.14</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi</artifactId>
+      <version>3.14</version>
+    </dependency>
+
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>5.1.38</version>
+    </dependency>
+
+```
+
+[项目地址](https://github.com/Zhang-Yixuan/SparkProject/tree/master/SparkSQL/Actual-Project/SparkEcomLogAnalysis/spark-project)
+
+[Echarts可视化](https://github.com/Zhang-Yixuan/SparkProject/tree/master/SparkSQL/Actual-Project/SparkEcomLogAnalysis/web)
+
+这里总是会出现端口占用的情况，因此要经常使用下面的命令
+
+查看某个端口被哪个程序占用
+
+netstat  -anp  |grep   端口号
+
+查看进程号对应的程序
+
+ps -ef | grep 17997
+
+查看指定端口号的进程情况
+
+netstat -tunlp
+
+- Spark on YARN
+
+在Spark中，支持4种可插拔的集群管理模式运行模式：
+
+1）Local：开发时使用
+
+2）Standalone： 是Spark自带的，如果一个集群是Standalone的话，那么就需要在多台机器上同时部署Spark环境
+
+3）YARN：建议大家在生产上使用该模式，统一使用YARN进行整个集群作业(MR、Spark)的资源调度
+
+4）Mesos：很少使用
+
+不管使用什么模式，Spark应用程序的代码是一模一样的，只需要在提交的时候通过--master参数来指定我们的运行模式即可
+
+- Spark on Yarn的Client模式
+
+	Driver运行在Client端(提交Spark作业的机器)
+
+	Client会和请求到的Container进行通信来完成作业的调度和执行，Client是不能退出的
+
+	日志信息会在控制台输出：便于我们测试
+
+- spark on Yarn的Cluster模式
+
+	Driver运行在ApplicationMaster中
+
+	Client只要提交完作业之后就可以关掉，因为作业已经在YARN上运行了
+
+	日志是在终端看不到的，因为日志是在Driver上，只能通过yarn logs -applicationIdapplication_id
+
+- 提交
+
+```bash
+
+./bin/spark-submit \
+--class org.apache.spark.examples.SparkPi \
+--master yarn \
+--executor-memory 1G \
+--num-executors 1 \
+/home/willhope/app/spark-2.4.4-bin-2.6.0-cdh5.15.1/examples/jars/spark-examples_2.11-2.4.4.jar \
+4
+
+此处的yarn就是我们的yarn client模式
+如果是yarn cluster模式的话，yarn-cluster
+```
+
+此时会报错：Exception in thread "main" java.lang.Exception: When running with master 'yarn' either HADOOP_CONF_DIR or YARN_CONF_DIR must be set in the environment.
+
+如果想运行在YARN之上，那么就必须要设置HADOOP_CONF_DIR或者是YARN_CONF_DIR
+
+1）将这句话 export HADOOP_CONF_DIR=/home/willhope/app/spark-2.4.4-bin-2.6.0-cdh5.15.1/etc/hadoop 配置到spark目录下的conf下的env.sh中
+
+或者2) $SPARK_HOME/conf/spark-env.sh
+
+
+./bin/spark-submit \
+--class org.apache.spark.examples.SparkPi \
+--master yarn-cluster \
+--executor-memory 1G \
+--num-executors 1 \
+/home/willhope/app/spark-2.4.4-bin-2.6.0-cdh5.15.1/examples/jars/spark-examples_2.11-2.4.4.jar \
+4
+
+结果的查看
+
+在spark目录下执行 yarn logs -applicationId application_1581676454713_0001，如果没有配置则看不见。可以在网页上面看 http://willhope-pc:8088 ，然后点击任务的history，然后再点击logs，再点击stdout  
+
+- 将数据清洗作业跑在Yarn上
+
+复制一份SparkStatCleanJob更改为SparkStatCleanJobYarn，将main方法更改为如下：
+
+```java
+  def main(args: Array[String]) {
+
+    if(args.length != 2){
+      println("Usage : SparkStatCleanJobYarn <inputPath> <outPath>")
+      System.exit(1)
+    }
+
+    val Array(inputPath , outPath) = args
+
+    val spark = SparkSession.builder()
+      .config("spark.sql.parquet.compression.codec","gzip")
+      .getOrCreate()
+
+    val accessRDD = spark.sparkContext.textFile(inputPath)
+
+
+    //RDD ==> DF
+    val accessDF = spark.createDataFrame(accessRDD.map(x => AccessConvertUtil.parseLog(x)),
+      AccessConvertUtil.struct)
+
+//    accessDF.printSchema()
+//    accessDF.show(false)
+
+    //下面这几句注释是调优点
+    //coalesce这个方法用来制定输出的文件个数
+    //partitionBy用来进行按天分组
+    //mode方法用来解决已经存在文件夹的问题
+    accessDF.coalesce(1).write.format("parquet").mode(SaveMode.Overwrite)
+      .partitionBy("day").save(outPath)
+
+    spark.stop
+  }
+```
+
+打包时要注意，pom.xml中需要添加如下plugin
+
+```xml
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala-library</artifactId>
+      <version>${scala.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-core_2.11</artifactId>
+      <version>${spark.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_2.11</artifactId>
+      <version>${spark.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-hive_2.11</artifactId>
+      <version>${spark.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.spark-project.hive</groupId>
+      <artifactId>hive-jdbc</artifactId>
+      <version>1.2.1.spark2</version>
+      <scope>provided</scope>
+    </dependency>
+
+
+
+<plugin>
+    <artifactId>maven-assembly-plugin</artifactId>
+    <configuration>
+        <archive>
+            <manifest>
+                <mainClass></mainClass>
+            </manifest>
+        </archive>
+        <descriptorRefs>
+            <descriptorRef>jar-with-dependencies</descriptorRef>
+        </descriptorRefs>
+    </configuration>
+</plugin>
+
+```
+
+在这个项目的目录下，使用 mvn assembly:assembly 进行打包，之后会在项目的target目录下产生一个sql-1.0-jar-with-dependencies.jar，然后将其放到当前用户目录下的lib中。再在spark目录下进行提交：
+
+先将要处理的access.log上传到hdfs上的input的目录下，然后在hdfs创建输出的目录
+
+```
+
+./bin/spark-submit \
+--class spark.ActualProject.LogJob.SparkStatCleanJobYARN \
+--name SparkStatCleanJobYARN \
+--master yarn \
+--executor-memory 1G \
+--num-executors 1 \
+--files /home/hadoop/lib/ipDatabase.csv,/home/hadoop/lib/ipRegion.xlsx \
+/home/willhope/lib/sql-1.0-jar-with-dependencies.jar \
+hdfs://willhope-pc:8020/input/* hdfs://willhope-pc:8020/clean
+
+```
+
+注意：--files在spark中的使用
+
+spark.read.format("parquet").load("/clean/day=20170511/part-00000-71d465d1-7338-4016-8d1a-729504a9f95e.snappy.parquet").show(false)
+
+- 将统计作业跑在Yarn上
+
+复制一份TopNStatJob更改为TopNStatJobYarn，将里面的main函数更改为
+
+```java
+
+ def main(args: Array[String]): Unit = {
+
+
+    if(args.length != 2){
+      println("Usage : TopNStatJobYarn <inputPath> <day>")
+      System.exit(1)
+    }
+
+    val Array(inputPath , day) = args
+
+    //我们自定义的结构体中time是string类型，但是spark会将此类型改变为int类型，因此使用config方法让其禁止更改
+    val spark = SparkSession.builder().appName("TopNStatJob")
+      .config("spark.sql.sources.partitionColumnTypeInference.enabled","false")
+      .master("local[2]").getOrCreate()
+
+    val accessDF = spark.read.format("parquet").load(inputPath)
+
+//    accessDF.printSchema()
+//    accessDF.show(false)
+
+    StatDAO.deleteData(day)
+
+
+    //使用dataFrame统计,最受学生欢迎的TopN课程
+//    videoAccessTopNStat(spark,accessDF,day)
+
+    //使用sql进行统计
+    videoAccessTopNStat2(spark,accessDF,day)
+
+    //按照地市进行统计TopN课程
+    cityAccessTopNStat(spark , accessDF,day)
+
+    //按照流量进行统计
+    videoTrafficsTopNStat(spark , accessDF,day)
+
+    spark.stop()
+
+  }
+
+```
+
+在这个项目的目录下，先使用mvn clean，再使用 mvn assembly:assembly 进行打包，之后会在项目的target目录下产生一个sql-1.0-jar-with-dependencies.jar，然后将其放到当前用户目录下的lib中。再在spark目录下进行提交：
+
+提交
+
+```
+
+./bin/spark-submit \
+--class spark.ActualProject.LogJob.TopNStatJobYARN \
+--name TopNStatJobYARN \
+--master yarn \
+--executor-memory 1G \
+--num-executors 1 \
+/home/willhope/lib/sql-1.0-jar-with-dependencies.jar \
+hdfs://willhope:8020/clean 20170511 
+
+```
+
+- 代码优化
+
+集群优化：
+
+存储格式的选择：http://www.infoq.com/cn/articles/bigdata-store-choose/
+
+压缩格式的选择：https://www.ibm.com/developerworks/cn/opensource/os-cn-hadoop-compression-analysis/
+
+调整并行度
+
+```
+
+./bin/spark-submit \
+--class com.imooc.log.TopNStatJobYARN \
+--name TopNStatJobYARN \
+--master yarn \
+--executor-memory 1G \
+--num-executors 1 \
+--conf spark.sql.shuffle.partitions=100 \
+/home/hadoop/lib/sql-1.0-jar-with-dependencies.jar \
+hdfs://hadoop001:8020/imooc/clean 20170511 
+```

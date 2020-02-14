@@ -33,26 +33,31 @@
       <groupId>org.scala-lang</groupId>
       <artifactId>scala-library</artifactId>
       <version>${scala.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_2.11</artifactId>
       <version>${spark.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-sql_2.11</artifactId>
       <version>${spark.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-hive_2.11</artifactId>
       <version>${spark.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.spark-project.hive</groupId>
       <artifactId>hive-jdbc</artifactId>
       <version>1.2.1.spark2</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -60,7 +65,6 @@
       <artifactId>ipdatabase</artifactId>
       <version>1.0</version>
     </dependency>
-
     <dependency>
       <groupId>org.apache.poi</groupId>
       <artifactId>poi-ooxml</artifactId>
@@ -129,6 +133,20 @@
           <scalaVersion>${scala.version}</scalaVersion>
         </configuration>
       </plugin>
+      <plugin>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifest>
+              <mainClass></mainClass>
+            </manifest>
+          </archive>
+          <descriptorRefs>
+            <descriptorRef>jar-with-dependencies</descriptorRef>
+          </descriptorRefs>
+        </configuration>
+      </plugin>
+
     </plugins>
   </reporting>
 </project>

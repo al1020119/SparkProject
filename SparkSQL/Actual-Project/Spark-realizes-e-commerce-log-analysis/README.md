@@ -1,1 +1,0 @@
-这个目录下的文件夹有两个，一个是spark-project，即使用spark分析慕课网站上受学生欢迎的课程，另一个web项目是用来将spark-project项目中的数据进行可视化展示（Echarts），第二个项目需要一定的JavaEE基础，可以忽略。
