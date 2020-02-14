@@ -1264,8 +1264,6 @@ Flume：web日志写入到HDFS
 
 通过图形化展示的方式展现出来：饼图、柱状图、地图、折线图  ECharts、HUE、Zeppelin（后两个一般是大数据开发人员使用的）
 
-一般的日志处理方式，我们是需要进行分区的，按照日志中的访问时间进行相应的分区，比如：d,h,m5(每5分钟一个分区)数据处理流程
-
 **离线数据处理架构，本次实战实现的是右侧的流程**
 <div align="center"> <img  src="/pictures/Data-processing-architecture.png"/> </div>
 
@@ -1281,4 +1279,23 @@ Flume：web日志写入到HDFS
 
 文件有些大，压缩后500MB，解压有5G，GitHub有上传限制，因此无法上传。这里抽取出一万行用来测试。
 
-对日志执行 head -10000 access.20161111.log >> 10000_access.log，抽取后的文件只有2.6MB
+对日志执行 head -10000 access.20161111.log >> 10000_access.log，抽取后的文件只有2.6MB，或者使用access.log文件。
+
+一般的日志处理方式，我们是需要进行分区的，按照日志中的访问时间进行相应的分区，比如：d,h,m5(每5分钟一个分区)数据处理流程，本次项目按照天进行分区
+
+- 日志清洗：
+
+输入：访问时间、访问URL、耗费的流量、访问IP地址信息
+输出：URL、cmsType(video/article)、cmsId(编号)、流量、ip、城市信息、访问时间、天
+
+- ip解析包的下载
+
+使用github上已有的开源项目
+
+1）git clone https://github.com/wzhe06/ipdatabase.git
+
+2）编译下载的项目：mvn clean package -DskipTests
+
+3）安装jar包到自己的maven仓库
+
+mvn install:install-file -Dfile=/Users/rocky/source/ipdatabase/target/ipdatabase-1.0-SNAPSHOT.jar -DgroupId=com.ggstar -DartifactId=ipdatabase -Dversion=1.0 -Dpackaging=jar

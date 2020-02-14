@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AnalysisUIOptions">
+    <option name="GROUP_BY_SEVERITY" value="true" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="c6b80f21-d51d-4a22-ab80-a584b1303c9d" name="Default Changelist" comment="" />
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CodeInsightWorkspaceSettings">
+    <option name="optimizeImportsOnTheFly" value="true" />
+  </component>
+  <component name="CodeStyleSettingsInfer">
+    <option name="done" value="true" />
+  </component>
+  <component name="DatabaseView">
+    <option name="SHOW_INTERMEDIATE" value="true" />
+    <option name="GROUP_DATA_SOURCES" value="true" />
+    <option name="GROUP_SCHEMA" value="true" />
+    <option name="GROUP_CONTENTS" value="false" />
+    <option name="SORT_POSITIONED" value="false" />
+    <option name="SHOW_EMPTY_GROUPS" value="false" />
+    <option name="AUTO_SCROLL_FROM_SOURCE" value="false" />
+    <option name="HIDDEN_KINDS">
+      <set />
+    </option>
+    <expand />
+    <select />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Class" />
+        <option value="Scala Object" />
+        <option value="Package Object" />
+        <option value="Scala Class" />
+      </list>
+    </option>
+  </component>
+  <component name="MavenImportPreferences">
+    <option name="generalSettings">
+      <MavenGeneralSettings>
+        <option name="localRepository" value="$MAVEN_REPOSITORY$" />
+        <option name="userSettingsFile" value="$USER_HOME$/app/apache-maven-3.5.4/conf/settings.xml" />
+      </MavenGeneralSettings>
+    </option>
+    <option name="importingSettings">
+      <MavenImportingSettings>
+        <option name="importAutomatically" value="true" />
+      </MavenImportingSettings>
+    </option>
+  </component>
+  <component name="ProjectCodeStyleSettingsMigration">
+    <option name="version" value="1" />
+  </component>
+  <component name="ProjectId" id="1Vht9tDLS93wL5ynmRFRPJKIj4y" />
+  <component name="PropertiesComponent">
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="aspect.path.notification.shown" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/src/main/resources" />
+    <property name="node.js.detected.package.eslint" value="true" />
+    <property name="node.js.detected.package.tslint" value="true" />
+    <property name="node.js.path.for.package.eslint" value="project" />
+    <property name="node.js.path.for.package.tslint" value="project" />
+    <property name="node.js.selected.package.eslint" value="(autodetect)" />
+    <property name="node.js.selected.package.tslint" value="(autodetect)" />
+    <property name="project.structure.last.edited" value="Modules" />
+    <property name="project.structure.proportion" value="0.0" />
+    <property name="project.structure.side.proportion" value="0.0" />
+    <property name="settings.editor.selected.configurable" value="MavenSettings" />
+  </component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/src/main/resources" />
+      <recent name="$PROJECT_DIR$/src/main/scala/spark/ActualProject" />
+      <recent name="$PROJECT_DIR$/src/main/scala/com/imooc/scala/spark" />
+    </key>
+  </component>
+  <component name="RunDashboard">
+    <option name="ruleStates">
+      <list>
+        <RuleState>
+          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
+        </RuleState>
+        <RuleState>
+          <option name="name" value="StatusDashboardGroupingRule" />
+        </RuleState>
+      </list>
+    </option>
+  </component>
+  <component name="RunManager" selected="Application.TopNStatJob">
+    <configuration name="DateUtils" type="Application" factoryName="Application" temporary="true">
+      <option name="MAIN_CLASS_NAME" value="spark.ActualProject.LogJob.DateUtils" />
+      <module name="scala-strain" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="spark.ActualProject.LogJob.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="IpUtils" type="Application" factoryName="Application" temporary="true">
+      <option name="MAIN_CLASS_NAME" value="spark.ActualProject.LogJob.IpUtils" />
+      <module name="scala-strain" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="spark.ActualProject.LogJob.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="LazyDemo" type="Application" factoryName="Application">
+      <option name="MAIN_CLASS_NAME" value="com.imooc.scala.spark.SQLContextApp" />
+      <module name="scala-strain" />
+      <option name="PROGRAM_PARAMETERS" value="file://$USER_HOME$/sparkdata/people.json" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.imooc.scala.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="MySQLUtils" type="Application" factoryName="Application" temporary="true">
+      <option name="MAIN_CLASS_NAME" value="spark.ActualProject.LogJob.MySQLUtils" />
+      <module name="scala-strain" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="spark.ActualProject.LogJob.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="SparkSQLThriftServerApp" type="Application" factoryName="Application">
+      <option name="MAIN_CLASS_NAME" value="com.imooc.scala.spark.SparkSQLThriftServerApp" />
+      <module name="scala-strain" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="spark.ActualProject.LogJob.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="SparkStatCleanJob (1)" type="Application" factoryName="Application" temporary="true">
+      <option name="MAIN_CLASS_NAME" value="spark.ActualProject.LogJob.SparkStatCleanJob" />
+      <module name="scala-strain" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="spark.ActualProject.LogJob.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="TopNStatJob" type="Application" factoryName="Application" temporary="true">
+      <option name="MAIN_CLASS_NAME" value="spark.ActualProject.LogJob.TopNStatJob" />
+      <module name="scala-strain" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="spark.ActualProject.LogJob.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="Application.SparkSQLThriftServerApp" />
+      <item itemvalue="Application.LazyDemo" />
+      <item itemvalue="Application.SparkStatCleanJob (1)" />
+      <item itemvalue="Application.DateUtils" />
+      <item itemvalue="Application.IpUtils" />
+      <item itemvalue="Application.TopNStatJob" />
+      <item itemvalue="Application.MySQLUtils" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Application.TopNStatJob" />
+        <item itemvalue="Application.MySQLUtils" />
+        <item itemvalue="Application.SparkStatCleanJob (1)" />
+        <item itemvalue="Application.IpUtils" />
+        <item itemvalue="Application.DateUtils" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="c6b80f21-d51d-4a22-ab80-a584b1303c9d" name="Default Changelist" comment="" />
+      <created>1577717006782</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1577717006782</updated>
+      <workItem from="1577717008222" duration="2796000" />
+      <workItem from="1577719838360" duration="5167000" />
+      <workItem from="1577764257191" duration="4370000" />
+      <workItem from="1577947354893" duration="2538000" />
+      <workItem from="1578038368874" duration="4930000" />
+      <workItem from="1578209055710" duration="3687000" />
+      <workItem from="1578297919863" duration="5078000" />
+      <workItem from="1578467099028" duration="635000" />
+      <workItem from="1578563136865" duration="610000" />
+      <workItem from="1578638982780" duration="84000" />
+      <workItem from="1578644093403" duration="454000" />
+      <workItem from="1578646015200" duration="226000" />
+      <workItem from="1578646294112" duration="93000" />
+      <workItem from="1578646449425" duration="138000" />
+      <workItem from="1578648624087" duration="503000" />
+      <workItem from="1578662563546" duration="1342000" />
+      <workItem from="1578663941478" duration="74000" />
+      <workItem from="1578664057171" duration="561000" />
+      <workItem from="1578803159616" duration="4647000" />
+      <workItem from="1579354278333" duration="212000" />
+      <workItem from="1579354811077" duration="1250000" />
+      <workItem from="1579528060840" duration="1303000" />
+      <workItem from="1579760519728" duration="1727000" />
+      <workItem from="1580982262603" duration="68000" />
+      <workItem from="1581049210840" duration="3963000" />
+      <workItem from="1581151898635" duration="31095000" />
+      <workItem from="1581483773301" duration="1326000" />
+      <workItem from="1581485143646" duration="113000" />
+      <workItem from="1581485297041" duration="2743000" />
+      <workItem from="1581491162049" duration="21868000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="1" />
+  </component>
+</project>
