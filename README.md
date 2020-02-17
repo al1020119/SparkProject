@@ -1614,3 +1614,287 @@ hdfs://willhope:8020/clean 20170511
 /home/hadoop/lib/sql-1.0-jar-with-dependencies.jar \
 hdfs://hadoop001:8020/imooc/clean 20170511 
 ```
+
+# Spark Streaming
+
+### 一、实时流处理的概述
+
+离线处理时效性非常低，如果要对需求进行分钟级别，秒级别的处理，则离线处理就不能满足。
+
+如果对时效性要求高，处理的数据量大，数据变化快等等问题，则要求使用实时流式处理，常见的场景就是电商的秒杀系统和推荐系统，淘宝双十一的交易等等。电信行业中，流量卡在快要使用完的时候，会发短息告知用户的流量使用情况，这个例子就是一个实时处理。
+
+实时计算24小时不间歇，流式计算，滔滔江水，绵绵不绝。
+
+- 离线计算与实时计算的对比
+
+1）数据来源
+
+离线：HDFS 历史数据，数据量比较大
+
+实时：消息队列，实时新增/修改记录过来的某一笔数据
+
+2）处理过程
+
+离线：MR
+
+实时：Spark（DataStream、ss）
+
+3）处理速度
+
+离线：慢
+
+实时：快速
+
+4）进程
+
+离线：启动+销毁
+
+实时：7 × 24小时
+
+- 实时流处理框架的对比
+
+Apache storm ： 真正的实时处理，每进来一个数据就会处理。
+
+Apache Spark Streaming ： 按照时间间隔将作业拆分为多个批处理。
+
+IBM Stream、Yahoo！S4
+
+LinkedIn Kafka：Kafka已经不仅仅是一个消息队列。
+
+Flink：既可以流式处理，也可以批处理，类似Spark
+
+- 实时流处理架构与技术选型
+
+web/app ===>  webserver(产生的access.log)  ====> Flume采集  ===> Kafka(用来当缓冲) ===>  Spark/Storm  ===> RDBMS/NoSQL ===> 可视化展示
+
+### 二、日志收集框架Flume
+
+Webserver服务器集群是独立于大数据集群的，因此，要使用Flume将Webserver产生的日志进行收集到hadoop平台上。
+
+- Flume概述
+
+官网 ： flume.apache.org
+
+分布式、高可靠和高可用性地进行有效的收集、聚合和移动到目的地。webserver ===> flume ===> hdfs
+
+flume的核心组件：
+
+1）source  从外部收集
+
+2）channel  从source聚集
+
+3）sink  从channel收集后输出
+
+- Flume安装
+
+1）在终端下载： wget：http://archive.cloudera.com/cdh5/cdh/5/flume-ng-1.6.0-cdh5.15.1.tar.gz
+
+2）解压缩： tar -zxvf flume-ng-1.6.0-cdh5.15.1.tar.gz /home/willhope/app
+
+3)添加环境变量： sudo vi /etc/profile
+
+```
+# flume environment
+
+export FLUME_HOME=/home/willhope/app/apache-flume-1.6.0-cdh5.15.1-bin
+
+export PATH=$FLUME_HOME/bin:$PATH
+```
+
+4)生效 source /etc/profile
+
+5)到flume下面的conf目录设置
+
+```
+cp flume-env.sh.template flume-env.sh
+vi flume-env.sh
+export JAVA_HOME=/..........  在终端输入echo JAVA_HOME可以查看
+```
+
+6）查看安装成功
+
+在flume的bin目录下输入：flume-ng version
+
+- Flume实战
+
+使用flume的关键就是写配置文件
+
+A)配置Source
+
+B)配置Channel
+
+C)配置Sink
+
+D)把以上三个组件串起来
+
+a1:agent名称
+
+r1：source名称
+
+c1：channel名称
+
+- Agent选型一：
+
+在flume目录下的conf目录中写一个example.conf文件，如下，将a1.sources.r1.bind = willhope-PC更改好自己的用户
+```
+# Name the components on this agent
+a1.sources = r1
+a1.sinks = k1
+a1.channels = c1
+
+# Describe/configure the source
+a1.sources.r1.type = netcat
+a1.sources.r1.bind = willhope-PC
+a1.sources.r1.port = 44444
+
+# Describe the sink
+a1.sinks.k1.type = logger
+
+# Use a channel which buffers events in memory
+a1.channels.c1.type = memory
+
+# Bind the source and sink to the channel
+a1.sources.r1.channels = c1
+a1.sinks.k1.channel = c1
+```
+
+启动agent
+
+flume-ng agent --name a1 --conf $FLUME_HOME/conf --conf-file $FLUME_HOME/conf/example.conf -Dflume.root.logger=INFO,console
+
+- Agent选型二：
+
+exec source + memory channel + logger sink
+
+在flume目录下的conf目录中写一个exec-memory-logger.conf文件
+
+```
+# Name the components on this agent
+a1.sources = r1
+a1.sinks = k1
+a1.channels = c1
+
+# Describe/configure the source
+a1.sources.r1.type = exec
+a1.sources.r1.command = tail -F /home/willhope/data/flumedata/data.log
+a1.sources.r1.shell = /bin/sh -c
+
+# Describe the sink
+a1.sinks.k1.type = logger
+
+# Use a channel which buffers events in memory
+a1.channels.c1.type = memory
+
+# Bind the source and sink to the channel
+a1.sources.r1.channels = c1
+a1.sinks.k1.channel = c1
+```
+
+启动agent
+
+flume-ng agent --name a1 --conf $FLUME_HOME/conf --conf-file $FLUME_HOME/conf/exec-memory-logger.conf -Dflume.root.logger=INFO,console
+
+- Agent选型三：
+
+exec source + memory channel + hdfs sink
+
+在flume目录下的conf目录中写一个exec-memory-hdfs.conf文件
+
+```
+# Name the components on this agent
+a1.sources = r1
+a1.sinks = k1
+a1.channels = c1
+
+# Describe/configure the source
+a1.sources.r1.type = exec
+a1.sources.r1.command = tail -F hdfs://willhope-pc:8020/flume/data.log
+a1.sources.r1.shell = /bin/sh -c
+
+# Describe the sink
+a1.sinks.k1.type = hdfs
+
+# Use a channel which buffers events in memory
+a1.channels.c1.type = memory
+
+# Bind the source and sink to the channel
+a1.sources.r1.channels = c1
+a1.sinks.k1.channel = c1
+```
+
+启动agent
+
+flume-ng agent --name a1 --conf $FLUME_HOME/conf --conf-file $FLUME_HOME/conf/exec-memory-hdfs.conf -Dflume.root.logger=INFO,console
+
+- Agent选型四：**（重点）**
+
+A服务器的日志转移到B服务器，因此有两个agent。机器A上监控一个文件，当我们访问网站时会有用户行为日志记录到access.log，avro sink把新产生的日志输出到对应的avro source制定的hostname和port上，通过avro source对应的agent将我们的日志输出到控制台(Kafka)
+
+1）在flume目录下的conf目录中写一个exec-memory-avro.conf文件，此类型为exec source + memory channel + avro sink 
+
+```
+# Name the components on this agent
+exec-memory-avro.sources = exec-source
+exec-memory-avro.sinks = avro-sink
+exec-memory-avro.channels = memory-channel
+
+# Describe/configure the source
+exec-memory-avro.sources.exec-source.type = exec
+exec-memory-avro.sources.exec-source.command = tail -F /home/willhope/data/flumedata/data.log
+exec-memory-avro.sources.exec-source.shell = /bin/sh -c
+
+# Describe the sink
+exec-memory-avro.sinks.avro-sink.type = avro
+exec-memory-avro.sinks.avro-sink.hostname = willhope-PC
+exec-memory-avro.sinks.avro-sink.port = 44444
+
+# Use a channel which buffers events in memory
+exec-memory-avro.channels.memory-channel.type = memory
+
+# Bind the source and sink to the channel
+exec-memory-avro.sources.exec-source.channels = memory-channel
+exec-memory-avro.sinks.avro-sink.channel = memory-channel
+```
+
+2）在flume目录下的conf目录中写一个avro-memory-logger.conf文件，此类型为 avro source  + memory channel + logger sink
+
+```
+# Name the components on this agent
+avro-memory-logger.sources = avro-source
+avro-memory-logger.sinks = logger-sink
+avro-memory-logger.channels = memory-channel
+
+# Describe/configure the source
+avro-memory-logger.sources.avro-source.type = avro
+avro-memory-logger.sources.avro-source.bind = willhope-PC
+avro-memory-logger.sources.avro-source.port = 44444
+
+
+# Describe the sink
+avro-memory-logger.sinks.logger-sink.type = logger
+
+# Use a channel which buffers events in memory
+avro-memory-logger.channels.memory-channel.type = memory
+
+# Bind the source and sink to the channel
+avro-memory-logger.sources.avro-source.channels = memory-channel
+avro-memory-logger.sinks.logger-sink.channel = memory-channel
+```
+
+启动agent
+
+flume-ng agent --name avro-memory-logger --conf $FLUME_HOME/conf --conf-file $FLUME_HOME/conf/avro-memory-logger.conf -Dflume.root.logger=INFO,console
+
+再启动agent
+
+flume-ng agent --name exec-memory-avro --conf $FLUME_HOME/conf --conf-file $FLUME_HOME/conf/exec-memory-avro.conf -Dflume.root.logger=INFO,console
+
+### 三、消息队列Kafka
+
+
+
+### 四、Spark Streaming
+
+### 五、Spark Streaming集成Kafka
+
+### 六、Spark Streaming集成Kafka和Flume
