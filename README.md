@@ -1891,6 +1891,118 @@ flume-ng agent --name exec-memory-avro --conf $FLUME_HOME/conf --conf-file $FLUM
 
 ### 三、消息队列Kafka
 
+- Kafka架构：
+
+producer：生产者，生产馒头（老妈）
+
+consumer：消费者，吃馒头（你）
+
+broker：篮子
+
+topic：主题，给馒头标签，不同标签的馒头是给不同的人吃
+
+- Kafka的使用前提——zookeeper的安装 
+
+下载zookeeper-3.4.5-cdh5.15.1.tar.gz，然后解压缩到app目录下，然后配到系统环境变量
+
+```
+#zookeeper environment
+export ZK_HOME=/home/willhope/app/zookeeper-3.4.5-cdh5.15.1
+export PATH=$ZK_HOME/bin:$PATH
+```
+
+将conf目录下的zoo_sample.cfg复制一份为zoo.cfg，然后修改conf目录下的zoo.cfg，设置dataDir=/home/willhope/app/tmp/zookeeper
+
+进入到bin目录，输入 ./zkServer.sh start 启动zookeeper
+
+jps查看成功与否：出现QuorumPeerMain 则表明成功
+
+连接客户端： ./zkCli.sh 
+
+- 下载Kafka并安装
+
+官网下载 kafka_2.11-2.4.0.tgz，然后解压到 app目录中
+
+配置到环境变量中，在source一下
+
+```
+#kafka environment
+export KF_HOME=/home/willhope/app/kafka_2.11-2.4.0
+export PATH=$KF_HOME/bin:$PATH
+```
+
+- 单节点单brocker的部署以及使用
+
+Kafka目录下的conf下的server.properties
+
+```
+broker.id=0
+listeners=PLAINTEXT://:9092
+host.name=willhope-pc
+log.dirs=/home/willhope/app/tmp/kafka-logs
+zookeeper.connect=willhope-pc:2181
+```
+
+启动Kafka， 在bin目录下执行： kafka-server-start.sh $KF_HOME/config/server.properties ，jps 之后会出现kafka进程
+
+创建topic：kafka-topics.sh --create --zookeeper willhope-pc:2181 --replication-factor 1 --partitions 1 --topic hello_topic
+
+查看创建的topic：kafka-topics.sh --list --zookeeper willhope-pc:2181
+
+查看创建的所有的topic的信息：kafka-topics.sh --describe --zookeeper willhope-pc:2181
+
+查看指定的topic信息：kafka-topics.sh --describe --zookeeper willhope-pc:2181 --topic hello_topic
+
+生产者 发送消息：kafka-console-producer.sh --broker-list willhope-pc:9092 --topic hello_topic
+
+消费者 消费消息：kafka-console-consumer.sh --bootstrap-server willhope-pc:9092 --topic hello_topic --from-beginning（这里遇到过一个坑 https://blog.csdn.net/csdn_sunlighting/article/details/81516646 ）这里面的--from-beginning是一个可选项，这个参数设置后，表示从头开始消费，也就是说将生产者的生产全部消费。
+
+- 单节点多broker部署与使用
+
+在config目录下，将server.properties复制两份，分别为server-1.properties和server-2.properties和server-3.properties，然后进行修改.
+
+先更改server-1.properties中的
+
+```
+broker.id = 1
+listeners=PLAINTEXT://:9093
+log.dirs=/home/willhope/app/tmp/kafka-logs-1
+
+```
+
+再更改server-2.properties中的
+
+```
+broker.id = 2
+listeners=PLAINTEXT://:9094
+log.dirs=/home/willhope/app/tmp/kafka-logs-2
+```
+
+再更改server-3.properties中的
+
+```
+broker.id = 3
+listeners=PLAINTEXT://:9095
+log.dirs=/home/willhope/app/tmp/kafka-logs-3
+```
+
+启动：kafka-server-start.sh -daemon $KF_HOME/config/server-1.properties &
+
+kafka-server-start.sh -daemon $KF_HOME/config/server-2.properties &
+
+kafka-server-start.sh -daemon $KF_HOME/config/server-3.properties &
+
+创建topic：kafka-topics.sh --create --zookeeper willhope-pc:2181  --replication-factor 3 --partitions 1 --topic my-replicated-topic
+
+查看创建的topic：kafka-topics.sh --list --zookeeper willhope-pc:2181
+
+查看创建的所有的topic的信息：kafka-topics.sh --describe --zookeeper willhope-pc:2181
+
+查看指定的topic信息：kafka-topics.sh --describe --zookeeper willhope-pc:2181 --topic my-replicated-topic
+
+生产者 发送消息：kafka-console-producer.sh --broker-list willhope-pc:9093，willhope-pc:9094，willhope-pc:9095 --topic my-replicated-topic
+
+消费者 消费消息：kafka-console-consumer.sh --bootstrap-server willhope-pc:9092 --topic my-replicated-topic --from-beginning（这里遇到过一个坑 https://blog.csdn.net/csdn_sunlighting/article/details/81516646 ）这里面的--from-beginning是一个可选项，这个参数设置后，表示从头开始消费，也就是说将生产者的生产全部消费。
 
 
 ### 四、Spark Streaming
