@@ -2004,8 +2004,78 @@ kafka-server-start.sh -daemon $KF_HOME/config/server-3.properties &
 
 消费者 消费消息：kafka-console-consumer.sh --bootstrap-server willhope-pc:9092 --topic my-replicated-topic --from-beginning（这里遇到过一个坑 https://blog.csdn.net/csdn_sunlighting/article/details/81516646 ）这里面的--from-beginning是一个可选项，这个参数设置后，表示从头开始消费，也就是说将生产者的生产全部消费。
 
+- Flume和Kafka的整合
+
+在Flume的conf目录下，找到我们之前配置的avro-memory-logger.conf文件，将其更改为avro-memory-kafka.conf文件
+
+```
+# Name the components on this agent
+avro-memory-kafka.sources = avro-source
+avro-memory-kafka.sinks = kafka-sink
+avro-memory-kafka.channels = memory-channel
+
+# Describe/configure the source
+avro-memory-kafka.sources.avro-source.type = avro
+avro-memory-kafka.sources.avro-source.bind = willhope-PC
+avro-memory-kafka.sources.avro-source.port = 44444
+
+
+# Describe the sink
+avro-memory-kafka.sinks.kafka-sink.type = org.apache.flume.sink.kafka.KafkaSink
+avro-memory-kafka.sinks.kafka-sink.bootstrap.servers = willhope-pc:9092
+avro-memory-kafka.sinks.kafka-sink.topic = hello_topic
+avro-memory-kafka.sinks.kafka-sink.flumeBatchSize = 5
+avro-memory-kafka.sinks.kafka-sink.producer.acks = 1
+
+# Use a channel which buffers events in memory
+avro-memory-kafka.channels.memory-channel.type = memory
+
+# Bind the source and sink to the channel
+avro-memory-kafka.sources.avro-source.channels = memory-channel
+avro-memory-kafka.sinks.kafka-sink.channel = memory-channel
+```
+
+启动agent
+
+flume-ng agent --name avro-memory-kafka --conf $FLUME_HOME/conf --conf-file $FLUME_HOME/conf/avro-memory-kafka.conf -Dflume.root.logger=INFO,console
+
+再启动agent
+
+flume-ng agent --name exec-memory-avro --conf $FLUME_HOME/conf --conf-file $FLUME_HOME/conf/exec-memory-avro.conf -Dflume.root.logger=INFO,console
 
 ### 四、Spark Streaming
+
+- HBase的安装
+
+下载hbase-1.2.0-cdh5.15.1，然后解压缩到app目录下，再将其添加到环境变量中。进入到hbase目录中的conf目录，修改hbase-env.sh，将java的环境变量地址添加到此文件中。其次改写 export HBASE_MANAGES_ZK=false。
+
+再修改hbase-site.xml文件
+
+```
+<property>
+     <name>hbase.rootdir</name>
+     <value>hdfs://willhope-pc:8020/hbase</value>
+</property>
+
+<property>
+     <name>hbase.cluster.distributed</name>
+     <value>true</value>
+</property>
+
+<property>
+	<name>hbase.zookeeper.quorum</name>
+	<value>willhope-pc:2181</value>
+</property>
+
+```
+
+再修改regionservers。改成自己机器的当前用户名
+
+启动：在使用前，先启动zookeeper，然后进入hbase的bin目录启动 ./start-hbase.sh。在浏览器中，willhope-pc:60010即可访问。在此bin目录下，还有一个hbase脚本，启动./hbase shell
+
+//TODO........HBase是NoSQL，因此先不涉及。用到时候在学。
+
+- 
 
 ### 五、Spark Streaming集成Kafka
 
